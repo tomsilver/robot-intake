@@ -1,20 +1,11 @@
 """Base class for approaches to solving CalibrativeMDPs."""
 
 import abc
-from typing import Callable, List, Set, Tuple, TypeAlias
+from typing import List, Set, Tuple
 
+from robot_intake.calibrators.base_calibrator import Calibrator
 from robot_intake.envs.calibrative_mdp import CalibrativeAction, Observation
-from robot_intake.envs.mdp import MDPAction, MDPState
-
-Policy: TypeAlias = Callable[[MDPState], MDPAction]
-
-
-class Calibrator(abc.ABC):
-    """Creates a policy given data from the calibration phase."""
-
-    @abc.abstractmethod
-    def calibrate(self, data: List[Tuple[CalibrativeAction, Observation]]) -> Policy:
-        """Creates a policy given data from the calibration phase."""
+from robot_intake.envs.mdp import MDPAction, MDPPolicy, MDPState
 
 
 class CalibrativeApproach(abc.ABC):
@@ -35,7 +26,7 @@ class CalibrativeApproach(abc.ABC):
         self._calibrator = calibrator
         self._last_calibrative_action: CalibrativeAction | None = None
         self._calibration_data: List[Tuple[CalibrativeAction, Observation]] = []
-        self._policy: Policy | None = None
+        self._policy: MDPPolicy | None = None
 
     def get_calibrative_action(self) -> CalibrativeAction:
         """Called during the calibration phase."""
