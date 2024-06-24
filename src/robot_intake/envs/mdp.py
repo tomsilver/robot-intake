@@ -1,7 +1,7 @@
 """A generic definition of an MDP with discrete states and actions."""
 
 import abc
-from typing import Generic, Set, TypeAlias, TypeVar
+from typing import Callable, Generic, Set, TypeAlias, TypeVar
 
 import numpy as np
 
@@ -9,6 +9,8 @@ from robot_intake.structs import CategoricalDistribution, HashableComparable, Im
 
 MDPState: TypeAlias = HashableComparable
 MDPAction: TypeAlias = HashableComparable
+MDPPolicy: TypeAlias = Callable[[MDPState], MDPAction]
+
 
 _S = TypeVar("_S", bound=MDPState)
 _A = TypeVar("_A", bound=MDPAction)
@@ -35,6 +37,20 @@ class MDP(Generic[_S, _A]):
     @abc.abstractmethod
     def get_reward(self, state: _S, action: _A, next_state: _S) -> float:
         """Return (deterministic) reward for executing action in state."""
+
+    @abc.abstractmethod
+    def get_initial_state_distribution(
+        self,
+    ) -> CategoricalDistribution[_S]:
+        """Return a discrete distribution over initial states."""
+
+    def sample_initial_state(self, rng: np.random.Generator) -> _S:
+        """Sample an initial state from the distribution.
+
+        This function may be overwritten by subclasses when the explicit
+        distribution is too large to enumerate.
+        """
+        return self.get_initial_state_distribution().sample(rng)
 
     @abc.abstractmethod
     def get_transition_distribution(
