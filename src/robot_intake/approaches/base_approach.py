@@ -1,10 +1,20 @@
 """Base class for approaches to solving CalibrativeMDPs."""
 
 import abc
-from typing import Set
+from typing import Callable, List, Set, Tuple, TypeAlias
 
 from robot_intake.envs.calibrative_mdp import CalibrativeAction, Observation
 from robot_intake.envs.mdp import MDPAction, MDPState
+
+Policy: TypeAlias = Callable[[MDPState], MDPAction]
+
+
+class Calibrator(abc.ABC):
+    """Creates a policy given data from the calibration phase."""
+
+    @abc.abstractmethod
+    def calibrate(self, data: List[Tuple[CalibrativeAction, Observation]]) -> Policy:
+        """Creates a policy given data from the calibration phase."""
 
 
 class CalibrativeApproach(abc.ABC):
@@ -16,24 +26,36 @@ class CalibrativeApproach(abc.ABC):
         action_space: Set[MDPAction],
         calibrative_action_space: Set[CalibrativeAction],
         observation_space: Set[Observation],
+        calibrator: Calibrator,
     ) -> None:
         self._state_space = state_space
         self._action_space = action_space
         self._calibrative_action_space = calibrative_action_space
         self._observation_space = observation_space
+        self._calibrator = calibrator
+        self._last_calibrative_action: CalibrativeAction | None = None
+        self._calibration_data: List[Tuple[CalibrativeAction, Observation]] = []
+        self._policy: Policy | None = None
 
-    @abc.abstractmethod
     def get_calibrative_action(self) -> CalibrativeAction:
         """Called during the calibration phase."""
+        self._last_calibrative_action = self._get_calibrative_action()
+        return self._last_calibrative_action
 
     @abc.abstractmethod
-    def observe_calibrative_response(self, obs: Observation) -> None:
+    def _get_calibrative_action(self) -> CalibrativeAction:
         """Called during the calibration phase."""
 
-    @abc.abstractmethod
+    def observe_calibrative_response(self, obs: Observation) -> None:
+        """Called during the calibration phase."""
+        assert self._last_calibrative_action is not None
+        self._calibration_data.append((self._last_calibrative_action, obs))
+
     def finish_calibration(self) -> None:
         """Called at the end of the calibration phase."""
+        self._policy = self._calibrator.calibrate(self._calibration_data)
 
-    @abc.abstractmethod
     def step(self, state: MDPState) -> MDPAction:
         """Called during evaluation, after calibration."""
+        assert self._policy is not None
+        return self._policy(state)
