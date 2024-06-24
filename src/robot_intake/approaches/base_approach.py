@@ -3,6 +3,8 @@
 import abc
 from typing import List, Set, Tuple
 
+import numpy as np
+
 from robot_intake.calibrators.base_calibrator import Calibrator
 from robot_intake.envs.calibrative_mdp import CalibrativeAction, Observation
 from robot_intake.envs.mdp import MDPAction, MDPPolicy, MDPState
@@ -18,12 +20,14 @@ class CalibrativeApproach(abc.ABC):
         calibrative_action_space: Set[CalibrativeAction],
         observation_space: Set[Observation],
         calibrator: Calibrator,
+        rng: np.random.Generator,
     ) -> None:
         self._state_space = state_space
         self._action_space = action_space
         self._calibrative_action_space = calibrative_action_space
         self._observation_space = observation_space
         self._calibrator = calibrator
+        self._rng = rng
         self._last_calibrative_action: CalibrativeAction | None = None
         self._calibration_data: List[Tuple[CalibrativeAction, Observation]] = []
         self._policy: MDPPolicy | None = None
