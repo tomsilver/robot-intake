@@ -5,12 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "robot_intake"
 version = "0.1.0"
-description = "A basic starter for Python packages."
+description = "Robot intake."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
    "matplotlib",
    "numpy",
+   "scipy",
 ]
 
 [project.optional-dependencies]
@@ -46,10 +47,10 @@ strict_equality = true
 disallow_untyped_calls = true
 warn_unreachable = true
 exclude = ["venv/*"]
-follow_imports = "skip"
 
 [[tool.mypy.overrides]]
 module = [
     "matplotlib.*",
+    "scipy.*",
 ]
 ignore_missing_imports = true
