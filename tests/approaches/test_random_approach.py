@@ -58,11 +58,11 @@ def test_random_approach():
         task_switch_prob,
     )
     # Create the calibrator.
+    rng = np.random.default_rng(123)
     calibrator = ToyCalibrator(
-        action_space, task_space, robot_state_transitions, task_switch_prob
+        action_space, task_space, robot_state_transitions, task_switch_prob, rng
     )
     # Create the approach.
-    rng = np.random.default_rng(123)
     approach = RandomCalibrativeApproach(
         env.state_space,
         env.action_space,

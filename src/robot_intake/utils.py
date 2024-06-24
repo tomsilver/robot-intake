@@ -1,7 +1,7 @@
 """General utility functions."""
 
 from graphlib import CycleError, TopologicalSorter
-from typing import Collection, Tuple, TypeVar, List
+from typing import Collection, List, Tuple, TypeVar
 
 from robot_intake.structs import HashableComparable
 
@@ -11,9 +11,7 @@ _T = TypeVar("_T", bound=HashableComparable)
 def topological_sort(l: Collection[_T], pairs: Collection[Tuple[_T, _T]]) -> List[_T]:
     """Create an ordered verison of l that obeys pairwise > relations."""
     # Create the TopologicalSorter object.
-    ts: TopologicalSorter[_T] = TopologicalSorter()
-    for node in l:
-        ts.add(node)
+    ts = TopologicalSorter({x: {} for x in l})
     for x, y in pairs:
         ts.add(x, y)
     try:

@@ -2,8 +2,13 @@
 
 from collections import defaultdict
 from typing import Dict, List, Set, Tuple
+
 import numpy as np
 
+from robot_intake.algorithms.value_iteration import (
+    value_function_to_greedy_policy,
+    value_iteration,
+)
 from robot_intake.calibrators.base_calibrator import Calibrator
 from robot_intake.envs.calibrative_mdp import CalibrativeAction, Observation
 from robot_intake.envs.mdp import MDPPolicy
@@ -30,18 +35,20 @@ class ToyCalibrator(Calibrator):
             _ToyRobotState, Dict[_ToyAction, CategoricalDistribution[_ToyRobotState]]
         ],
         task_switch_prob: float,
+        rng: np.random.Generator,
     ) -> None:
         self._action_space = action_space
         self._task_space = task_space
         self._robot_state_transitions = robot_state_transitions
         self._task_switch_prob = task_switch_prob
+        self._rng = rng
 
     def calibrate(self, data: List[Tuple[CalibrativeAction, Observation]]) -> MDPPolicy:
         # Come up with a very coarse approximation of the hidden parameters
         # given the data and then solve the MDP with value iteration.
         task_data: List[Tuple[_TaskQuestion, Observation]] = []
         reward_data: List[Tuple[_RewardQuestion, Observation]] = []
-        for (calibrative_action, observation) in data:
+        for calibrative_action, observation in data:
             if isinstance(calibrative_action, _TaskQuestion):
                 task_data.append((calibrative_action, observation))
             elif isinstance(calibrative_action, _RewardQuestion):
@@ -56,9 +63,9 @@ class ToyCalibrator(Calibrator):
             self._robot_state_transitions,
             self._task_switch_prob,
         )
-        import ipdb
-
-        ipdb.set_trace()
+        value_fn = value_iteration(mdp)
+        policy = value_function_to_greedy_policy(value_fn, mdp, self._rng)
+        return policy
 
     def _infer_task_probs(
         self, data: List[Tuple[_TaskQuestion, Observation]]
