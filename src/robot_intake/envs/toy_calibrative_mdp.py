@@ -2,7 +2,7 @@
 
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Dict, Set, TypeAlias
+from typing import Any, Dict, Set, TypeAlias
 
 from robot_intake.envs.calibrative_mdp import CalibrativeMDP
 from robot_intake.structs import CategoricalDistribution, Image
@@ -31,15 +31,18 @@ class _ToyHiddenParameters:
         assert set(self.task_probs) == set(self.task_rewards)
 
 
-@dataclass(frozen=True, order=True)
+@dataclass(frozen=True)
 class _TaskQuestion:
     """Is task1 more likely than task2 in the task distribution?"""
 
     task1: _ToyTask
     task2: _ToyTask
 
+    def __lt__(self, other: Any) -> bool:
+        return str(self) < str(other)
 
-@dataclass(frozen=True, order=True)
+
+@dataclass(frozen=True)
 class _RewardQuestion:
     """Is the reward for robot1 greater than that for robot2 in task?"""
 
@@ -47,10 +50,16 @@ class _RewardQuestion:
     robot1: _ToyRobotState
     robot2: _ToyRobotState
 
+    def __lt__(self, other: Any) -> bool:
+        return str(self) < str(other)
 
-@dataclass(frozen=True, order=True)
+
+@dataclass(frozen=True)
 class _CoinQuestion:
     """Flip a coin and return the boolean resposne."""
+
+    def __lt__(self, other: Any) -> bool:
+        return str(self) < str(other)
 
 
 _ToyCalibrativeAction: TypeAlias = _TaskQuestion | _RewardQuestion | _CoinQuestion
@@ -89,6 +98,15 @@ class ToyCalibrativeMDP(
     @property
     def _hidden_parameter(self) -> _ToyHiddenParameters:
         return _ToyHiddenParameters(self._task_probs, self._task_rewards)
+
+    def get_initial_state_distribution(self) -> CategoricalDistribution[_ToyState]:
+        # Uniform within tasks.
+        dist: Dict[_ToyState, float] = {}
+        num_robot = len(self._robot_state_transitions)
+        for task, task_prob in self._hidden_parameter.task_probs.items():
+            for robot in self._robot_state_transitions:
+                dist[_ToyState(task, robot)] = task_prob * (1 / num_robot)
+        return CategoricalDistribution(dist)
 
     @property
     def calibrative_action_space(self) -> Set[_ToyCalibrativeAction]:

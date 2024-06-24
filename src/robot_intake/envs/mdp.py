@@ -39,6 +39,20 @@ class MDP(Generic[_S, _A]):
         """Return (deterministic) reward for executing action in state."""
 
     @abc.abstractmethod
+    def get_initial_state_distribution(
+        self,
+    ) -> CategoricalDistribution[_S]:
+        """Return a discrete distribution over initial states."""
+
+    def sample_initial_state(self, rng: np.random.Generator) -> _S:
+        """Sample an initial state from the distribution.
+
+        This function may be overwritten by subclasses when the explicit
+        distribution is too large to enumerate.
+        """
+        return self.get_initial_state_distribution().sample(rng)
+
+    @abc.abstractmethod
     def get_transition_distribution(
         self, state: _S, action: _A
     ) -> CategoricalDistribution[_S]:
