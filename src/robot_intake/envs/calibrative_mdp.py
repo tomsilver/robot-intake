@@ -3,6 +3,8 @@
 import abc
 from typing import Generic, Set, TypeAlias, TypeVar
 
+import numpy as np
+
 from robot_intake.envs.hip_mdp import HiPMDP
 from robot_intake.structs import CategoricalDistribution, HashableComparable
 
@@ -37,3 +39,15 @@ class CalibrativeMDP(HiPMDP[_H, _S, _A], Generic[_H, _S, _A, _C, _O]):
         self, hidden_parameter: _H, calibrative_action: _C
     ) -> CategoricalDistribution[_O]:
         """Return a discrete distribution over observations."""
+
+    def sample_observation(
+        self, hidden_parameter: _H, calibrative_action: _C, rng: np.random.Generator
+    ) -> _S:
+        """Sample an observation from the observation distribution.
+
+        This function may be overwritten by subclasses when the explicit
+        distribution is too large to enumerate.
+        """
+        return self.get_observation_distribution(
+            hidden_parameter, calibrative_action
+        ).sample(rng)
