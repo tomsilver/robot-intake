@@ -34,20 +34,26 @@ class CalibrativeMDP(HiPMDP[_H, _S, _A], Generic[_H, _S, _A, _C, _O]):
     def observation_space(self) -> Set[_O]:
         """Representation of the observation space for calibration."""
 
-    @abc.abstractmethod
     def get_observation_distribution(
+        self, calibrative_action: _C
+    ) -> CategoricalDistribution[_O]:
+        """Return a discrete distribution over observations."""
+        return self._get_observation_distribution(
+            self._hidden_parameter, calibrative_action
+        )
+
+    @abc.abstractmethod
+    def _get_observation_distribution(
         self, hidden_parameter: _H, calibrative_action: _C
     ) -> CategoricalDistribution[_O]:
         """Return a discrete distribution over observations."""
 
     def sample_observation(
-        self, hidden_parameter: _H, calibrative_action: _C, rng: np.random.Generator
+        self, calibrative_action: _C, rng: np.random.Generator
     ) -> _O:
         """Sample an observation from the observation distribution.
 
         This function may be overwritten by subclasses when the explicit
         distribution is too large to enumerate.
         """
-        return self.get_observation_distribution(
-            hidden_parameter, calibrative_action
-        ).sample(rng)
+        return self.get_observation_distribution(calibrative_action).sample(rng)

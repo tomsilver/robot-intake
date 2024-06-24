@@ -70,6 +70,8 @@ class ToyCalibrativeMDP(
 
     def __init__(
         self,
+        task_probs: Dict[_ToyTask, float],
+        task_rewards: Dict[_ToyTask, Dict[_ToyRobotState, float]],
         action_space: Set[_ToyAction],
         task_space: Set[_ToyTask],
         robot_state_transitions: Dict[
@@ -77,10 +79,16 @@ class ToyCalibrativeMDP(
         ],
         task_switch_prob: float,
     ) -> None:
+        self._task_probs = task_probs
+        self._task_rewards = task_rewards
         self._action_space = action_space
         self._task_space = task_space
         self._robot_state_transitions = robot_state_transitions
         self._task_switch_prob = task_switch_prob
+
+    @property
+    def _hidden_parameter(self) -> _ToyHiddenParameters:
+        return _ToyHiddenParameters(self._task_probs, self._task_rewards)
 
     @property
     def calibrative_action_space(self) -> Set[_ToyCalibrativeAction]:
@@ -106,7 +114,7 @@ class ToyCalibrativeMDP(
     def observation_space(self) -> Set[_ToyObservation]:
         return {True, False}
 
-    def get_observation_distribution(
+    def _get_observation_distribution(
         self,
         hidden_parameter: _ToyHiddenParameters,
         calibrative_action: _ToyCalibrativeAction,
@@ -152,7 +160,7 @@ class ToyCalibrativeMDP(
     def temporal_discount_factor(self) -> float:
         return 1.0
 
-    def get_reward(
+    def _get_reward(
         self,
         hidden_parameter: _ToyHiddenParameters,
         state: _ToyState,
@@ -163,7 +171,7 @@ class ToyCalibrativeMDP(
         robot = next_state.robot
         return hidden_parameter.task_rewards[task][robot]
 
-    def get_transition_distribution(
+    def _get_transition_distribution(
         self,
         hidden_parameter: _ToyHiddenParameters,
         state: _ToyState,
@@ -182,7 +190,5 @@ class ToyCalibrativeMDP(
             state_dist[_ToyState(state.task, next_robot)] += p
         return CategoricalDistribution(state_dist, normalize=True)
 
-    def render_state(
-        self, hidden_parameter: _ToyHiddenParameters, state: _ToyState
-    ) -> Image:
+    def render_state(self, state: _ToyState) -> Image:
         raise NotImplementedError
