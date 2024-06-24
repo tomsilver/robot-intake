@@ -141,10 +141,6 @@ class ToyCalibrativeMDP(
         return CategoricalDistribution({True: 0.5, False: 0.5})
 
     @property
-    def hidden_parameter_space(self) -> Set[_ToyHiddenParameters]:
-        raise NotImplementedError("Hidden parameter space cannot be enumerated")
-
-    @property
     def state_space(self) -> Set[_ToyState]:
         states = set()
         for task in self._task_space:

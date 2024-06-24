@@ -25,11 +25,6 @@ class HiPMDP(Generic[_H, _S, _A], MDP[_S, _A]):
 
     @property
     @abc.abstractmethod
-    def hidden_parameter_space(self) -> Set[_H]:
-        """Representation of the hidden parameter space."""
-
-    @property
-    @abc.abstractmethod
     def state_space(self) -> Set[_S]:
         """Representation of the MDP state set."""
 
