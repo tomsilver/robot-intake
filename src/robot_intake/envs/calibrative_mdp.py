@@ -42,7 +42,7 @@ class CalibrativeMDP(HiPMDP[_H, _S, _A], Generic[_H, _S, _A, _C, _O]):
 
     def sample_observation(
         self, hidden_parameter: _H, calibrative_action: _C, rng: np.random.Generator
-    ) -> _S:
+    ) -> _O:
         """Sample an observation from the observation distribution.
 
         This function may be overwritten by subclasses when the explicit
