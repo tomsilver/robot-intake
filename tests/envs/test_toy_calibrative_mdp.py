@@ -51,6 +51,7 @@ def test_toy_calibrative_mdp():
             1: 1.0,
         },
     }
+    num_coin_flips = 100
     env = ToyCalibrativeMDP(
         task_probs,
         task_rewards,
@@ -58,6 +59,7 @@ def test_toy_calibrative_mdp():
         task_space,
         robot_state_transitions,
         task_switch_prob,
+        num_coin_flip_calibrative_actions=num_coin_flips,
     )
     num_actions = len(env.action_space)
     num_states = len(robot_state_transitions)
@@ -66,7 +68,7 @@ def test_toy_calibrative_mdp():
     assert env.action_space == {"stay", "move"}
     assert (
         len(env.calibrative_action_space)
-        == num_tasks**2 + num_tasks * (num_actions**2) + 1
+        == num_tasks**2 + num_tasks * (num_actions**2) + num_coin_flips
     )
     assert env.observation_space == {True, False}
     dist = env.get_observation_distribution(_TaskQuestion("task0", "task1"))
@@ -77,7 +79,7 @@ def test_toy_calibrative_mdp():
     assert np.isclose(dist[True], 1.0)
     dist = env.get_observation_distribution(_RewardQuestion("task0", 1, 0))
     assert np.isclose(dist[False], 1.0)
-    dist = env.get_observation_distribution(_CoinQuestion())
+    dist = env.get_observation_distribution(_CoinQuestion(0))
     assert np.isclose(dist[True], 0.5)
     state = sorted(env.state_space)[0]
     action = sorted(env.action_space)[0]

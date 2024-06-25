@@ -1,11 +1,11 @@
 """Value iteration."""
 
 from dataclasses import dataclass
-from typing import Dict
+from typing import Callable, Dict
 
 import numpy as np
 
-from robot_intake.envs.mdp import MDP, MDPAction, MDPPolicy, MDPState
+from robot_intake.envs.mdp import MDP, MDPAction, MDPState
 from robot_intake.structs import Hyperparameters
 
 
@@ -32,7 +32,7 @@ def bellman_backup(s: MDPState, V: Dict[MDPState, float], mdp: MDP) -> float:
 
 def value_function_to_greedy_policy(
     V: Dict[MDPState, float], mdp: MDP, rng: np.random.Generator
-) -> MDPPolicy:
+) -> Callable[[MDPState], MDPAction]:
     """Create a greedy policy given a value function."""
     gamma = mdp.temporal_discount_factor
     P = mdp.get_transition_distribution

@@ -1,7 +1,7 @@
 """Domain-specific calibrator for the ToyCalibrativeMDP."""
 
 from collections import defaultdict
-from typing import Dict, List, Set, Tuple
+from typing import Callable, Dict, List, Set, Tuple
 
 import numpy as np
 
@@ -10,21 +10,25 @@ from robot_intake.algorithms.value_iteration import (
     value_iteration,
 )
 from robot_intake.calibrators.base_calibrator import Calibrator
-from robot_intake.envs.calibrative_mdp import CalibrativeAction, Observation
-from robot_intake.envs.mdp import MDPPolicy
+from robot_intake.envs.calibrative_mdp import Observation
 from robot_intake.envs.toy_calibrative_mdp import (
     ToyCalibrativeMDP,
     _RewardQuestion,
     _TaskQuestion,
     _ToyAction,
+    _ToyCalibrativeAction,
+    _ToyObservation,
     _ToyRobotState,
+    _ToyState,
     _ToyTask,
 )
 from robot_intake.structs import CategoricalDistribution
 from robot_intake.utils import topological_sort
 
 
-class ToyCalibrator(Calibrator):
+class ToyCalibrator(
+    Calibrator[_ToyState, _ToyAction, _ToyCalibrativeAction, _ToyObservation]
+):
     """Domain-specific calibrator for the ToyCalibrativeMDP."""
 
     def __init__(
@@ -43,7 +47,9 @@ class ToyCalibrator(Calibrator):
         self._task_switch_prob = task_switch_prob
         self._rng = rng
 
-    def calibrate(self, data: List[Tuple[CalibrativeAction, Observation]]) -> MDPPolicy:
+    def calibrate(
+        self, data: List[Tuple[_ToyCalibrativeAction, _ToyObservation]]
+    ) -> Callable[[_ToyState], _ToyAction]:
         # Come up with a very coarse approximation of the hidden parameters
         # given the data and then solve the MDP with value iteration.
         task_data: List[Tuple[_TaskQuestion, Observation]] = []
@@ -65,7 +71,7 @@ class ToyCalibrator(Calibrator):
         )
         value_fn = value_iteration(mdp)
         policy = value_function_to_greedy_policy(value_fn, mdp, self._rng)
-        return policy
+        return policy  # type: ignore
 
     def _infer_task_probs(
         self, data: List[Tuple[_TaskQuestion, Observation]]
@@ -77,9 +83,6 @@ class ToyCalibrator(Calibrator):
                 continue
             if response:
                 pairwise_relations.append((question.task1, question.task2))
-            else:
-                # Assume no equality.
-                pairwise_relations.append((question.task2, question.task1))
         ordered_tasks = topological_sort(self._task_space, pairwise_relations)
         # This is the approximation: linearly increasing probabilities.
         unnormed_probs = np.arange(1, len(ordered_tasks) + 1)
@@ -99,16 +102,15 @@ class ToyCalibrator(Calibrator):
                 continue
             if response:
                 relation = (question.robot1, question.robot2)
-            else:
-                # Assume no equality.
-                relation = (question.robot2, question.robot1)
-            pairwise_relations[question.task].append(relation)
+                pairwise_relations[question.task].append(relation)
         task_rewards: Dict[_ToyTask, Dict[_ToyRobotState, float]] = {}
         states = sorted(self._robot_state_transitions)
+        # Use knowledge of reward distribution.
         for task in self._task_space:
-            # This is the approximation: linearly increasing rewards.
             ordered_states = topological_sort(states, pairwise_relations[task])
-            rewards = np.arange(1, len(ordered_states) + 1)
-            rews = dict(zip(ordered_states, rewards))
-            task_rewards[task] = rews
+            bad_state, good_state = ordered_states[0], ordered_states[-1]
+            d = {s: 0.0 for s in ordered_states}
+            d[good_state] = 10.0
+            d[bad_state] = -10.0
+            task_rewards[task] = d
         return task_rewards
