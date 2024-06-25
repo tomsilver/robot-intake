@@ -37,7 +37,7 @@ def _main(
         assert csv_file.exists()
         df = pd.read_csv(csv_file)
         return _df_to_plot(df, outdir)
-    columns = ["Seed", "Num Calibration Steps", "Evaluation Performance"]
+    columns = ["Seed", "Num Calibration Steps", "Returns"]
     results: List[Tuple[int, int, float]] = []
     for num_calibration_steps in [0, 10, 100, 1000]:
         print(f"Starting {num_calibration_steps=}")
