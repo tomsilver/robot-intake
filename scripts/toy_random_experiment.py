@@ -44,7 +44,7 @@ def _main(
         print(f"Starting {num_calibration_steps=}")
         for seed in range(start_seed, start_seed + num_seeds):
             print(f"Starting {seed=}")
-            for approach in ["Oracle"]:
+            for approach in ["Oracle", "Random Calibration"]:
                 print(f"Starting {approach=}")
                 result = _run_single(
                     seed,
