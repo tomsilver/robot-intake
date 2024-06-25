@@ -1,5 +1,7 @@
 """An approach that has access to the hidden parameters."""
 
+from typing import Collection
+
 import numpy as np
 
 from robot_intake.algorithms.value_iteration import (
@@ -28,6 +30,9 @@ class OracleApproach(RandomCalibrativeApproach):
             calibrator,  # type: ignore
             rng,
         )
+
+    def _train(self, training_envs: Collection[CalibrativeMDP]) -> None:
+        pass
 
     def finish_calibration(self) -> None:
         value_fn = value_iteration(self._env)

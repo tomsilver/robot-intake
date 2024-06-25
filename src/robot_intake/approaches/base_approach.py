@@ -1,12 +1,16 @@
 """Base class for approaches to solving CalibrativeMDPs."""
 
 import abc
-from typing import Callable, Generic, List, Set, Tuple, TypeVar
+from typing import Callable, Collection, Generic, List, Set, Tuple, TypeVar
 
 import numpy as np
 
 from robot_intake.calibrators.base_calibrator import Calibrator
-from robot_intake.envs.calibrative_mdp import CalibrativeAction, Observation
+from robot_intake.envs.calibrative_mdp import (
+    CalibrativeAction,
+    CalibrativeMDP,
+    Observation,
+)
 from robot_intake.envs.mdp import MDPAction, MDPState
 
 _S = TypeVar("_S", bound=MDPState)
@@ -36,6 +40,14 @@ class CalibrativeApproach(Generic[_S, _A, _C, _O]):
         self._last_calibrative_action: _C | None = None
         self._calibration_data: List[Tuple[_C, _O]] = []
         self._policy: Callable[[_S], _A] | None = None
+
+    def train(self, training_envs: Collection[CalibrativeMDP]) -> None:
+        """Learn a calibration policy in training environments."""
+        return self._train(training_envs)
+
+    @abc.abstractmethod
+    def _train(self, training_envs: Collection[CalibrativeMDP]) -> None:
+        """Learn a calibration policy in training environments."""
 
     def get_calibrative_action(self) -> _C:
         """Called during the calibration phase."""
