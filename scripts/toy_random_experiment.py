@@ -182,7 +182,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", default=0, type=int)
-    parser.add_argument("--num_seeds", default=5, type=int)
+    parser.add_argument("--num_seeds", default=10, type=int)
     parser.add_argument("--num_robot_states", default=5, type=int)
     parser.add_argument("--num_tasks", default=3, type=int)
     parser.add_argument("--num_actions", default=2, type=int)
