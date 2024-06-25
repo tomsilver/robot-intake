@@ -100,12 +100,11 @@ class ToyCalibrativeMDP(
         return _ToyHiddenParameters(self._task_probs, self._task_rewards)
 
     def get_initial_state_distribution(self) -> CategoricalDistribution[_ToyState]:
-        # Uniform within tasks.
+        # Always start out at the first robot state.
         dist: Dict[_ToyState, float] = {}
-        num_robot = len(self._robot_state_transitions)
+        init_robot_state = min(self._robot_state_transitions)
         for task, task_prob in self._hidden_parameter.task_probs.items():
-            for robot in self._robot_state_transitions:
-                dist[_ToyState(task, robot)] = task_prob * (1 / num_robot)
+            dist[_ToyState(task, init_robot_state)] = task_prob
         return CategoricalDistribution(dist)
 
     @property

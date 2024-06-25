@@ -9,6 +9,8 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
+from robot_intake.approaches.base_approach import CalibrativeApproach
+from robot_intake.approaches.oracle_approach import OracleApproach
 from robot_intake.approaches.random_approach import RandomCalibrativeApproach
 from robot_intake.calibrators.toy_calibrator import (
     ToyCalibrator,
@@ -37,22 +39,25 @@ def _main(
         assert csv_file.exists()
         df = pd.read_csv(csv_file)
         return _df_to_plot(df, outdir)
-    columns = ["Seed", "Num Calibration Steps", "Returns"]
-    results: List[Tuple[int, int, float]] = []
-    for num_calibration_steps in [0, 10, 100, 1000]:
+    columns = ["Seed", "Approach", "Num Calibration Steps", "Returns"]
+    results: List[Tuple[int, str, int, float]] = []
+    for num_calibration_steps in [0, 10]:  # , 100, 1000]:
         print(f"Starting {num_calibration_steps=}")
         for seed in range(start_seed, start_seed + num_seeds):
             print(f"Starting {seed=}")
-            result = _run_single(
-                seed,
-                num_calibration_steps,
-                num_robot_states,
-                num_tasks,
-                num_actions,
-                num_evaluation_episodes,
-                evaluation_horizon,
-            )
-            results.append((seed, num_calibration_steps, result))
+            for approach in ["Oracle", "Calibration"]:
+                print(f"Starting {approach=}")
+                result = _run_single(
+                    seed,
+                    approach,
+                    num_calibration_steps,
+                    num_robot_states,
+                    num_tasks,
+                    num_actions,
+                    num_evaluation_episodes,
+                    evaluation_horizon,
+                )
+                results.append((seed, approach, num_calibration_steps, result))
     df = pd.DataFrame(results, columns=columns)
     df.to_csv(csv_file)
     return _df_to_plot(df, outdir)
@@ -61,7 +66,7 @@ def _main(
 def _sample_task_probs(
     task_space: Set[_ToyTask], rng: np.random.Generator
 ) -> Dict[_ToyTask, float]:
-    p = rng.dirichlet(np.ones(len(task_space)))
+    p = rng.dirichlet(0.1 * np.ones(len(task_space)))
     ordered_tasks = sorted(task_space)
     return dict(zip(ordered_tasks, p, strict=True))
 
@@ -71,13 +76,15 @@ def _sample_task_rewards(
     robot_state_space: Set[_ToyRobotState],
     rng: np.random.Generator,
 ) -> Dict[_ToyTask, Dict[_ToyRobotState, float]]:
+    # Make one very bad state, one very good state, and the rest neutral.
     task_rewards = {}
     ordered_robot_states = sorted(robot_state_space)
-    num_robot_states = len(robot_state_space)
-    rews = np.arange(num_robot_states) - (num_robot_states - 1) / 2
+    good_state, bad_state = rng.choice(ordered_robot_states, size=2, replace=False)
     for task in sorted(task_space):
-        rng.shuffle(rews)
-        task_rewards[task] = dict(zip(ordered_robot_states, rews))
+        d = {s: 0.0 for s in ordered_robot_states}
+        d[good_state] = 100.0
+        d[bad_state] = -100.0
+        task_rewards[task] = d
     return task_rewards
 
 
@@ -91,18 +98,25 @@ def _sample_robot_state_transitions(
     ] = {}
     ordered_robot_states = sorted(robot_state_space)
     ordered_actions = sorted(action_space)
+    next_state_queue = list(ordered_robot_states)
+    rng.shuffle(next_state_queue)
     for state in ordered_robot_states:
         transitions[state] = {}
         for action in ordered_actions:
-            # Make closer to deterministic.
-            p = rng.dirichlet(0.01 * np.ones(len(ordered_robot_states)))
-            d = dict(zip(ordered_robot_states, p, strict=True))
+            # Deterministic.
+            if not next_state_queue:
+                next_state_queue = list(ordered_robot_states)
+                rng.shuffle(next_state_queue)
+            next_state = next_state_queue.pop(0)
+            d = {s: 0.0 for s in ordered_robot_states}
+            d[next_state] = 1.0
             transitions[state][action] = CategoricalDistribution(d)
     return transitions
 
 
 def _run_single(
     seed: int,
+    approach_name: str,
     num_calibration_steps: int,
     num_robot_states: int,
     num_tasks: int,
@@ -129,19 +143,23 @@ def _run_single(
         robot_state_transitions,
         task_switch_prob,
     )
-    # Create the calibrator.
-    calibrator = ToyCalibrator(
-        action_space, task_space, robot_state_transitions, task_switch_prob, rng
-    )
-    # Create the approach.
-    approach = RandomCalibrativeApproach(
-        env.state_space,
-        env.action_space,
-        env.calibrative_action_space,
-        env.observation_space,
-        calibrator,
-        rng,
-    )
+    if approach_name == "Calibration":
+        # Create the calibrator.
+        calibrator = ToyCalibrator(
+            action_space, task_space, robot_state_transitions, task_switch_prob, rng
+        )
+        # Create the approach.
+        approach: CalibrativeApproach = RandomCalibrativeApproach(
+            env.state_space,
+            env.action_space,
+            env.calibrative_action_space,
+            env.observation_space,
+            calibrator,
+            rng,
+        )
+    else:
+        assert approach_name == "Oracle"
+        approach = OracleApproach(env, rng)
 
     # Calibration phase.
     print("Starting calibration phase...")
@@ -175,24 +193,33 @@ def _df_to_plot(df: pd.DataFrame, outdir: Path) -> None:
     matplotlib.rcParams.update({"font.size": 20})
     fig_file = outdir / "toy_random_experiment.png"
 
-    grouped = df.groupby(["Num Calibration Steps"]).agg({"Returns": ["mean", "sem"]})
+    grouped = df.groupby(["Num Calibration Steps", "Approach"]).agg(
+        {"Returns": ["mean", "sem"]}
+    )
     grouped.columns = grouped.columns.droplevel(0)
     grouped = grouped.rename(columns={"mean": "Returns_mean", "sem": "Returns_sem"})
     grouped = grouped.reset_index()
     plt.figure(figsize=(10, 6))
 
-    plt.plot(grouped["Num Calibration Steps"], grouped["Returns_mean"])
-    plt.fill_between(
-        grouped["Num Calibration Steps"],
-        grouped["Returns_mean"] - grouped["Returns_sem"],
-        grouped["Returns_mean"] + grouped["Returns_sem"],
-        alpha=0.2,
-    )
+    for approach in grouped["Approach"].unique():
+        approach_data = grouped[grouped["Approach"] == approach]
+        plt.plot(
+            approach_data["Num Calibration Steps"],
+            approach_data["Returns_mean"],
+            label=approach,
+        )
+        plt.fill_between(
+            approach_data["Num Calibration Steps"],
+            approach_data["Returns_mean"] - approach_data["Returns_sem"],
+            approach_data["Returns_mean"] + approach_data["Returns_sem"],
+            alpha=0.2,
+        )
 
     plt.xlabel("Num Calibration Steps")
     plt.ylabel("Evaluation Performance")
     plt.title("Toy Calibration MDP")
     plt.grid(True)
+    plt.legend(loc="lower right")
     plt.tight_layout()
     plt.savefig(fig_file, dpi=150)
     print(f"Wrote out to {fig_file}")
@@ -208,7 +235,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_tasks", default=3, type=int)
     parser.add_argument("--num_actions", default=2, type=int)
     parser.add_argument("--num_evaluation_episodes", default=100, type=int)
-    parser.add_argument("--evaluation_horizon", default=10, type=int)
+    parser.add_argument("--evaluation_horizon", default=100, type=int)
     parser.add_argument("--outdir", default=Path("results"), type=Path)
     parser.add_argument("--load", action="store_true")
     parser_args = parser.parse_args()

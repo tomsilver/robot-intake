@@ -111,11 +111,12 @@ class ToyCalibrator(
             pairwise_relations[question.task].append(relation)
         task_rewards: Dict[_ToyTask, Dict[_ToyRobotState, float]] = {}
         states = sorted(self._robot_state_transitions)
+        # Use knowledge of reward distribution.
         for task in self._task_space:
-            # This is the approximation: linearly increasing rewards.
             ordered_states = topological_sort(states, pairwise_relations[task])
-            num_robot_states = len(ordered_states)
-            rewards = np.arange(num_robot_states) - (num_robot_states - 1) / 2
-            rews = dict(zip(ordered_states, rewards))
-            task_rewards[task] = rews
+            bad_state, good_state = ordered_states[0], ordered_states[-1]
+            d = {s: 0.0 for s in ordered_states}
+            d[good_state] = 100.0
+            d[bad_state] = -100.0
+            task_rewards[task] = d
         return task_rewards
