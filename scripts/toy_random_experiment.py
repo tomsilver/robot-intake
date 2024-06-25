@@ -7,6 +7,7 @@ from typing import Dict, List, Set, Tuple
 import matplotlib
 import numpy as np
 import pandas as pd
+from matplotlib import pyplot as plt
 
 from robot_intake.approaches.random_approach import RandomCalibrativeApproach
 from robot_intake.calibrators.toy_calibrator import (
@@ -38,7 +39,7 @@ def _main(
         return _df_to_plot(df, outdir)
     columns = ["Seed", "Num Calibration Steps", "Evaluation Performance"]
     results: List[Tuple[int, int, float]] = []
-    for num_calibration_steps in [0, 10, 100, 1000, 10000, 100000]:
+    for num_calibration_steps in [0, 10, 100, 1000]:
         print(f"Starting {num_calibration_steps=}")
         for seed in range(start_seed, start_seed + num_seeds):
             print(f"Starting {seed=}")
@@ -173,8 +174,28 @@ def _run_single(
 def _df_to_plot(df: pd.DataFrame, outdir: Path) -> None:
     matplotlib.rcParams.update({"font.size": 20})
     fig_file = outdir / "toy_random_experiment.png"
-    print(fig_file)
-    print(df)
+
+    grouped = df.groupby(["Num Calibration Steps"]).agg({"Returns": ["mean", "sem"]})
+    grouped.columns = grouped.columns.droplevel(0)
+    grouped = grouped.rename(columns={"mean": "Returns_mean", "sem": "Returns_sem"})
+    grouped = grouped.reset_index()
+    plt.figure(figsize=(10, 6))
+
+    plt.plot(grouped["Num Calibration Steps"], grouped["Returns_mean"])
+    plt.fill_between(
+        grouped["Num Calibration Steps"],
+        grouped["Returns_mean"] - grouped["Returns_sem"],
+        grouped["Returns_mean"] + grouped["Returns_sem"],
+        alpha=0.2,
+    )
+
+    plt.xlabel("Num Calibration Steps")
+    plt.ylabel("Evaluation Performance")
+    plt.title("Toy Calibration MDP")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(fig_file, dpi=150)
+    print(f"Wrote out to {fig_file}")
 
 
 if __name__ == "__main__":
