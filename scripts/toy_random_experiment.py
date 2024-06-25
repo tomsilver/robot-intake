@@ -41,7 +41,7 @@ def _main(
         return _df_to_plot(df, outdir)
     columns = ["Seed", "Approach", "Num Calibration Steps", "Returns"]
     results: List[Tuple[int, str, int, float]] = []
-    for num_calibration_steps in [0, 10, 100, 1000]:
+    for num_calibration_steps in [0, 10, 100, 250, 500]:
         print(f"Starting {num_calibration_steps=}")
         for seed in range(start_seed, start_seed + num_seeds):
             print(f"Starting {seed=}")
@@ -143,7 +143,7 @@ def _run_single(
         robot_state_transitions,
         task_switch_prob,
     )
-    if approach_name == "Calibration":
+    if approach_name == "Random Calibration":
         # Create the calibrator.
         calibrator = ToyCalibrator(
             action_space, task_space, robot_state_transitions, task_switch_prob, rng
