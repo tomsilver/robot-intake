@@ -74,7 +74,7 @@ def test_random_approach():
         calibrative_action = approach.get_calibrative_action()
         obs = env.sample_observation(calibrative_action, rng)
         approach.observe_calibrative_response(obs)
-    approach.finish_calibration()
+    approach.calibrate()
 
     # Evaluation phase.
     state = env.sample_initial_state(rng)

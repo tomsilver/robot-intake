@@ -64,7 +64,7 @@ class CalibrativeApproach(Generic[_S, _A, _C, _O]):
         assert self._last_calibrative_action is not None
         self._calibration_data.append((self._last_calibrative_action, obs))
 
-    def finish_calibration(self) -> None:
+    def calibrate(self) -> None:
         """Called at the end of the calibration phase."""
         self._policy = self._calibrator.calibrate(self._calibration_data)
 

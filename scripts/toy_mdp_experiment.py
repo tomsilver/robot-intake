@@ -44,23 +44,23 @@ def _main(
         return _df_to_plot(df, outdir)
     columns = ["Seed", "Approach", "Num Calibration Steps", "Returns"]
     approaches = ["Greedy Maximization", "Oracle", "Random Calibration"]
+    num_calibration_steps = [0, 10, 100, 500, 1000]
     results: List[Tuple[int, str, int, float]] = []
-    for num_calibration_steps in [0, 10, 100, 500, 1000]:
-        print(f"Starting {num_calibration_steps=}")
-        for seed in range(start_seed, start_seed + num_seeds):
-            print(f"Starting {seed=}")
-            for approach in approaches:
-                print(f"Starting {approach=}")
-                result = _run_single(
-                    seed,
-                    approach,
-                    num_training_envs,
-                    num_calibration_steps,
-                    num_robot_states,
-                    num_tasks,
-                    num_actions,
-                )
-                results.append((seed, approach, num_calibration_steps, result))
+    for seed in range(start_seed, start_seed + num_seeds):
+        print(f"Starting {seed=}")
+        for approach in approaches:
+            print(f"Starting {approach=}")
+            result = _run_single(
+                seed,
+                approach,
+                num_training_envs,
+                num_calibration_steps,
+                num_robot_states,
+                num_tasks,
+                num_actions,
+            )
+            for num_steps, returns in result:
+                results.append((seed, approach, num_steps, returns))
     df = pd.DataFrame(results, columns=columns)
     df.to_csv(csv_file)
     return _df_to_plot(df, outdir)
@@ -121,11 +121,11 @@ def _run_single(
     seed: int,
     approach_name: str,
     num_training_envs: int,
-    num_calibration_steps: int,
+    num_calibration_steps: List[int],
     num_robot_states: int,
     num_tasks: int,
     num_actions: int,
-) -> float:
+) -> List[Tuple[int, float]]:
     rng = np.random.default_rng(seed)
     # Create things that are constant in the world (across deployments).
     task_space = set(range(num_tasks))
@@ -177,21 +177,22 @@ def _run_single(
     # Calibration phase.
     print("Starting calibration phase...")
     rng = np.random.default_rng(seed)
-    for _ in range(num_calibration_steps):
-        calibrative_action = approach.get_calibrative_action()
-        obs = test_env.sample_observation(calibrative_action, rng)
-        approach.observe_calibrative_response(obs)
-    print("Finishing calibration...")
-    approach.finish_calibration()
-
-    # Evaluation phase.
-    print("Starting evaluation phase...")
-    policy = approach.step
-    values = evaluate_policy_linear_system(policy, test_env)
-    initial_state_dist = test_env.get_initial_state_distribution()
-    value = float(sum(values[s] * p for s, p in initial_state_dist.items()))
-    print("Result:", value)
-    return value
+    max_calibration_steps = max(num_calibration_steps)
+    results = []
+    for t in range(max_calibration_steps + 1):
+        if t in num_calibration_steps:
+            print(f"Calibrating and evaluating after {t} steps...")
+            approach.calibrate()
+            values = evaluate_policy_linear_system(approach.step, test_env)
+            initial_state_dist = test_env.get_initial_state_distribution()
+            value = float(sum(values[s] * p for s, p in initial_state_dist.items()))
+            print("Result:", value)
+            results.append((t, value))
+        if t < max_calibration_steps:
+            calibrative_action = approach.get_calibrative_action()
+            obs = test_env.sample_observation(calibrative_action, rng)
+            approach.observe_calibrative_response(obs)
+    return results
 
 
 def _df_to_plot(df: pd.DataFrame, outdir: Path) -> None:
