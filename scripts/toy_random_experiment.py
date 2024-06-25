@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
+from robot_intake.algorithms.policy_evaluation import evaluate_policy_linear_system
 from robot_intake.approaches.base_approach import CalibrativeApproach
 from robot_intake.approaches.oracle_approach import OracleApproach
 from robot_intake.approaches.random_approach import RandomCalibrativeApproach
@@ -28,8 +29,6 @@ def _main(
     num_robot_states: int,
     num_tasks: int,
     num_actions: int,
-    num_evaluation_episodes: int,
-    evaluation_horizon: int,
     outdir: Path,
     load: bool,
 ) -> None:
@@ -54,8 +53,6 @@ def _main(
                     num_robot_states,
                     num_tasks,
                     num_actions,
-                    num_evaluation_episodes,
-                    evaluation_horizon,
                 )
                 results.append((seed, approach, num_calibration_steps, result))
     df = pd.DataFrame(results, columns=columns)
@@ -121,8 +118,6 @@ def _run_single(
     num_robot_states: int,
     num_tasks: int,
     num_actions: int,
-    num_evaluation_episodes: int,
-    evaluation_horizon: int,
 ) -> float:
     rng = np.random.default_rng(seed)
     # Create the env.
@@ -146,7 +141,7 @@ def _run_single(
     if approach_name == "Random Calibration":
         # Create the calibrator.
         calibrator = ToyCalibrator(
-            action_space, task_space, robot_state_transitions, task_switch_prob, rng
+            action_space, task_space, robot_state_transitions, task_switch_prob, seed
         )
         # Create the approach.
         approach: CalibrativeApproach = RandomCalibrativeApproach(
@@ -155,11 +150,11 @@ def _run_single(
             env.calibrative_action_space,
             env.observation_space,
             calibrator,
-            rng,
+            seed,
         )
     else:
         assert approach_name == "Oracle"
-        approach = OracleApproach(env, rng)
+        approach = OracleApproach(env, seed)
 
     # Calibration phase.
     print("Starting calibration phase...")
@@ -173,20 +168,12 @@ def _run_single(
 
     # Evaluation phase.
     print("Starting evaluation phase...")
-    rng = np.random.default_rng(seed)
-    rews = []
-    for _ in range(num_evaluation_episodes):
-        state = env.sample_initial_state(rng)
-        rew = 0.0
-        for _ in range(evaluation_horizon):
-            action = approach.step(state)
-            next_state = env.sample_next_state(state, action, rng)
-            rew += env.get_reward(state, action, next_state)
-            state = next_state
-        rews.append(rew)
-    mean_rew = float(np.mean(rews))
-    print("Average rewards:", mean_rew)
-    return mean_rew
+    policy = approach.step
+    values = evaluate_policy_linear_system(policy, env)
+    initial_state_dist = env.get_initial_state_distribution()
+    value = float(sum(values[s] * p for s, p in initial_state_dist.items()))
+    print("Result:", value)
+    return value
 
 
 def _df_to_plot(df: pd.DataFrame, outdir: Path) -> None:
@@ -234,8 +221,6 @@ if __name__ == "__main__":
     parser.add_argument("--num_robot_states", default=10, type=int)
     parser.add_argument("--num_tasks", default=3, type=int)
     parser.add_argument("--num_actions", default=2, type=int)
-    parser.add_argument("--num_evaluation_episodes", default=100, type=int)
-    parser.add_argument("--evaluation_horizon", default=100, type=int)
     parser.add_argument("--outdir", default=Path("results"), type=Path)
     parser.add_argument("--load", action="store_true")
     parser_args = parser.parse_args()
@@ -245,8 +230,6 @@ if __name__ == "__main__":
         parser_args.num_robot_states,
         parser_args.num_tasks,
         parser_args.num_actions,
-        parser_args.num_evaluation_episodes,
-        parser_args.evaluation_horizon,
         parser_args.outdir,
         parser_args.load,
     )

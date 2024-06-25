@@ -14,6 +14,7 @@ dependencies = [
    "scipy",
    "pandas",
    "pandas-stubs",
+   "sympy",
 ]
 
 [project.optional-dependencies]
@@ -49,6 +50,9 @@ strict_equality = true
 disallow_untyped_calls = true
 warn_unreachable = true
 exclude = ["venv/*"]
+untyped_calls_exclude = [
+    "sympy",
+]
 
 [[tool.mypy.overrides]]
 module = [
