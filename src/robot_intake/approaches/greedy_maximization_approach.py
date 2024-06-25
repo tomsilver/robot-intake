@@ -77,4 +77,5 @@ class GreedyMaximizationCalibrativeApproach(CalibrativeApproach):
     def _get_calibrative_action(self) -> CalibrativeAction:
         a = self._ordered_calibrative_actions[self._next_calibrative_action_idx]
         self._next_calibrative_action_idx += 1
+        self._next_calibrative_action_idx %= len(self._calibrative_action_space)
         return a
