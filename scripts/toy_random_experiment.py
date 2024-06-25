@@ -44,7 +44,7 @@ def _main(
         print(f"Starting {num_calibration_steps=}")
         for seed in range(start_seed, start_seed + num_seeds):
             print(f"Starting {seed=}")
-            for approach in ["Oracle", "Random Calibration"]:
+            for approach in ["Oracle"]:
                 print(f"Starting {approach=}")
                 result = _run_single(
                     seed,
@@ -141,7 +141,7 @@ def _run_single(
     if approach_name == "Random Calibration":
         # Create the calibrator.
         calibrator = ToyCalibrator(
-            action_space, task_space, robot_state_transitions, task_switch_prob, rng
+            action_space, task_space, robot_state_transitions, task_switch_prob, seed
         )
         # Create the approach.
         approach: CalibrativeApproach = RandomCalibrativeApproach(
@@ -150,11 +150,11 @@ def _run_single(
             env.calibrative_action_space,
             env.observation_space,
             calibrator,
-            rng,
+            seed,
         )
     else:
         assert approach_name == "Oracle"
-        approach = OracleApproach(env, rng)
+        approach = OracleApproach(env, seed)
 
     # Calibration phase.
     print("Starting calibration phase...")
