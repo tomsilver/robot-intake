@@ -172,7 +172,7 @@ class ToyCalibrativeMDP(
 
     @property
     def temporal_discount_factor(self) -> float:
-        return 1.0
+        return 0.99
 
     def _get_reward(
         self,

@@ -114,7 +114,8 @@ class ToyCalibrator(
         for task in self._task_space:
             # This is the approximation: linearly increasing rewards.
             ordered_states = topological_sort(states, pairwise_relations[task])
-            rewards = np.arange(1, len(ordered_states) + 1)
+            num_robot_states = len(ordered_states)
+            rewards = np.arange(num_robot_states) - (num_robot_states - 1) / 2
             rews = dict(zip(ordered_states, rewards))
             task_rewards[task] = rews
         return task_rewards

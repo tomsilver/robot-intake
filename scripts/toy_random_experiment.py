@@ -38,7 +38,7 @@ def _main(
         return _df_to_plot(df, outdir)
     columns = ["Seed", "Num Calibration Steps", "Evaluation Performance"]
     results: List[Tuple[int, int, float]] = []
-    for num_calibration_steps in [0, 10, 100]:
+    for num_calibration_steps in [0, 10, 100, 1000, 10000, 100000]:
         print(f"Starting {num_calibration_steps=}")
         for seed in range(start_seed, start_seed + num_seeds):
             print(f"Starting {seed=}")
@@ -72,9 +72,11 @@ def _sample_task_rewards(
 ) -> Dict[_ToyTask, Dict[_ToyRobotState, float]]:
     task_rewards = {}
     ordered_robot_states = sorted(robot_state_space)
+    num_robot_states = len(robot_state_space)
+    rews = np.arange(num_robot_states) - (num_robot_states - 1) / 2
     for task in sorted(task_space):
-        p = rng.normal(loc=0.0, scale=10.0, size=len(ordered_robot_states))
-        task_rewards[task] = dict(zip(ordered_robot_states, p))
+        rng.shuffle(rews)
+        task_rewards[task] = dict(zip(ordered_robot_states, rews))
     return task_rewards
 
 
@@ -91,7 +93,8 @@ def _sample_robot_state_transitions(
     for state in ordered_robot_states:
         transitions[state] = {}
         for action in ordered_actions:
-            p = rng.dirichlet(np.ones(len(ordered_robot_states)))
+            # Make closer to deterministic.
+            p = rng.dirichlet(0.01 * np.ones(len(ordered_robot_states)))
             d = dict(zip(ordered_robot_states, p, strict=True))
             transitions[state][action] = CategoricalDistribution(d)
     return transitions
@@ -141,7 +144,7 @@ def _run_single(
 
     # Calibration phase.
     print("Starting calibration phase...")
-    rng = np.random.default_rng(rng)
+    rng = np.random.default_rng(seed)
     for _ in range(num_calibration_steps):
         calibrative_action = approach.get_calibrative_action()
         obs = env.sample_observation(calibrative_action, rng)
@@ -151,7 +154,7 @@ def _run_single(
 
     # Evaluation phase.
     print("Starting evaluation phase...")
-    rng = np.random.default_rng(rng)
+    rng = np.random.default_rng(seed)
     rews = []
     for _ in range(num_evaluation_episodes):
         state = env.sample_initial_state(rng)
@@ -183,7 +186,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_robot_states", default=5, type=int)
     parser.add_argument("--num_tasks", default=3, type=int)
     parser.add_argument("--num_actions", default=2, type=int)
-    parser.add_argument("--num_evaluation_episodes", default=10, type=int)
+    parser.add_argument("--num_evaluation_episodes", default=100, type=int)
     parser.add_argument("--evaluation_horizon", default=10, type=int)
     parser.add_argument("--outdir", default=Path("results"), type=Path)
     parser.add_argument("--load", action="store_true")
