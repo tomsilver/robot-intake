@@ -4,6 +4,7 @@ from typing import Collection, Dict, List
 
 from robot_intake.approaches.base_approach import CalibrativeApproach
 from robot_intake.envs.calibrative_mdp import CalibrativeAction, CalibrativeMDP
+import numpy as np
 
 
 class GreedyMaximizationCalibrativeApproach(CalibrativeApproach):
@@ -34,11 +35,14 @@ class GreedyMaximizationCalibrativeApproach(CalibrativeApproach):
             self._calibrative_action_to_score[action] = total_score
 
     def _score_action_in_env(
-        self, action: CalibrativeAction, env: CalibrativeMDP
+        self, calibrative_action: CalibrativeAction, env: CalibrativeMDP
     ) -> float:
-        import ipdb
-
-        ipdb.set_trace()
+        # Run one-step calibration.
+        obs = env.sample_observation(calibrative_action, self._rng)
+        policy = self._calibrator.calibrate([(calibrative_action, obs)])
+        # Evaluate the resulting policy.
+        score = run_policy_evaluation(policy, env)
+        return score
 
     def _get_calibrative_action(self) -> CalibrativeAction:
         a = self._ordered_calibrative_actions[self._next_calibrative_action_idx]
