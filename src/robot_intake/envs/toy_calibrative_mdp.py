@@ -58,6 +58,8 @@ class _RewardQuestion:
 class _CoinQuestion:
     """Flip a coin and return the boolean resposne."""
 
+    num: int  # to allow for multiple copies of this action
+
     def __lt__(self, other: Any) -> bool:
         return str(self) < str(other)
 
@@ -87,6 +89,7 @@ class ToyCalibrativeMDP(
             _ToyRobotState, Dict[_ToyAction, CategoricalDistribution[_ToyRobotState]]
         ],
         task_switch_prob: float,
+        num_coin_flip_calibrative_actions: int = 100,
     ) -> None:
         self._task_probs = task_probs
         self._task_rewards = task_rewards
@@ -94,6 +97,7 @@ class ToyCalibrativeMDP(
         self._task_space = task_space
         self._robot_state_transitions = robot_state_transitions
         self._task_switch_prob = task_switch_prob
+        self._num_coin_flip_calibrative_actions = num_coin_flip_calibrative_actions
 
     @property
     def _hidden_parameter(self) -> _ToyHiddenParameters:
@@ -122,8 +126,9 @@ class ToyCalibrativeMDP(
                 for rob2 in self._robot_state_transitions:
                     actions.add(_RewardQuestion(task, rob1, rob2))
 
-        # Add coin flip question.
-        actions.add(_CoinQuestion())
+        # Add coin flip questions.
+        for i in range(self._num_coin_flip_calibrative_actions):
+            actions.add(_CoinQuestion(i))
 
         return actions
 

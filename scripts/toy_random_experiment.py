@@ -41,7 +41,7 @@ def _main(
         return _df_to_plot(df, outdir)
     columns = ["Seed", "Approach", "Num Calibration Steps", "Returns"]
     results: List[Tuple[int, str, int, float]] = []
-    for num_calibration_steps in [0, 10, 100, 250, 500]:
+    for num_calibration_steps in [0, 10, 100, 500, 1000]:
         print(f"Starting {num_calibration_steps=}")
         for seed in range(start_seed, start_seed + num_seeds):
             print(f"Starting {seed=}")
@@ -231,7 +231,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", default=0, type=int)
     parser.add_argument("--num_seeds", default=10, type=int)
-    parser.add_argument("--num_robot_states", default=5, type=int)
+    parser.add_argument("--num_robot_states", default=10, type=int)
     parser.add_argument("--num_tasks", default=3, type=int)
     parser.add_argument("--num_actions", default=2, type=int)
     parser.add_argument("--num_evaluation_episodes", default=100, type=int)
