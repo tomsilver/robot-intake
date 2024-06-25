@@ -2,9 +2,9 @@
 
 from typing import Collection, Dict, List
 
+from robot_intake.algorithms.policy_evaluation import evaluate_policy_linear_system
 from robot_intake.approaches.base_approach import CalibrativeApproach
 from robot_intake.envs.calibrative_mdp import CalibrativeAction, CalibrativeMDP
-import numpy as np
 
 
 class GreedyMaximizationCalibrativeApproach(CalibrativeApproach):
@@ -41,8 +41,10 @@ class GreedyMaximizationCalibrativeApproach(CalibrativeApproach):
         obs = env.sample_observation(calibrative_action, self._rng)
         policy = self._calibrator.calibrate([(calibrative_action, obs)])
         # Evaluate the resulting policy.
-        score = run_policy_evaluation(policy, env)
-        return score
+        values = evaluate_policy_linear_system(policy, env)
+        initial_state_dist = env.get_initial_state_distribution()
+        value = float(sum(values[s] * p for s, p in initial_state_dist.items()))
+        return value
 
     def _get_calibrative_action(self) -> CalibrativeAction:
         a = self._ordered_calibrative_actions[self._next_calibrative_action_idx]

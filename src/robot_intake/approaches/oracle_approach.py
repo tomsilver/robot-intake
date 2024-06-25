@@ -18,7 +18,7 @@ class OracleApproach(RandomCalibrativeApproach):
     def __init__(
         self,
         env: CalibrativeMDP,
-        rng: np.random.Generator,
+        seed: int,
     ) -> None:
         self._env = env
         calibrator = None
@@ -28,7 +28,7 @@ class OracleApproach(RandomCalibrativeApproach):
             env.calibrative_action_space,
             env.observation_space,
             calibrator,  # type: ignore
-            rng,
+            seed,
         )
 
     def _train(self, training_envs: Collection[CalibrativeMDP]) -> None:
@@ -36,4 +36,7 @@ class OracleApproach(RandomCalibrativeApproach):
 
     def finish_calibration(self) -> None:
         value_fn = value_iteration(self._env)
-        self._policy = value_function_to_greedy_policy(value_fn, self._env, self._rng)
+        tiebreak_rng = np.random.default_rng(self._seed)
+        self._policy = value_function_to_greedy_policy(
+            value_fn, self._env, tiebreak_rng
+        )

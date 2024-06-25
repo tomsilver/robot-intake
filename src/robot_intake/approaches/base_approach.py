@@ -29,14 +29,15 @@ class CalibrativeApproach(Generic[_S, _A, _C, _O]):
         calibrative_action_space: Set[_C],
         observation_space: Set[_O],
         calibrator: Calibrator,
-        rng: np.random.Generator,
+        seed: int,
     ) -> None:
         self._state_space = state_space
         self._action_space = action_space
         self._calibrative_action_space = calibrative_action_space
         self._observation_space = observation_space
         self._calibrator = calibrator
-        self._rng = rng
+        self._seed = seed
+        self._rng = np.random.default_rng(seed)
         self._last_calibrative_action: _C | None = None
         self._calibration_data: List[Tuple[_C, _O]] = []
         self._policy: Callable[[_S], _A] | None = None

@@ -38,14 +38,14 @@ class ToyCalibrator(
         robot_state_transitions: Dict[
             _ToyRobotState, Dict[_ToyAction, CategoricalDistribution[_ToyRobotState]]
         ],
-        rng: np.random.Generator,
+        seed: int,
         task_switch_prob: float = 0.1,
     ) -> None:
         self._action_space = action_space
         self._task_space = task_space
         self._robot_state_transitions = robot_state_transitions
         self._task_switch_prob = task_switch_prob
-        self._rng = rng
+        self._seed = seed
 
     def calibrate(
         self, data: List[Tuple[_ToyCalibrativeAction, _ToyObservation]]
@@ -70,7 +70,8 @@ class ToyCalibrator(
             self._task_switch_prob,
         )
         value_fn = value_iteration(mdp)
-        policy = value_function_to_greedy_policy(value_fn, mdp, self._rng)
+        tiebreak_rng = np.random.default_rng(self._seed)
+        policy = value_function_to_greedy_policy(value_fn, mdp, tiebreak_rng)
         return policy  # type: ignore
 
     def _infer_task_probs(

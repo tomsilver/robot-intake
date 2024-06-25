@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
+from robot_intake.algorithms.policy_evaluation import evaluate_policy_linear_system
 from robot_intake.approaches.base_approach import CalibrativeApproach
 from robot_intake.approaches.greedy_maximization_approach import (
     GreedyMaximizationCalibrativeApproach,
@@ -32,8 +33,6 @@ def _main(
     num_robot_states: int,
     num_tasks: int,
     num_actions: int,
-    num_evaluation_episodes: int,
-    evaluation_horizon: int,
     outdir: Path,
     load: bool,
 ) -> None:
@@ -61,8 +60,6 @@ def _main(
                     num_robot_states,
                     num_tasks,
                     num_actions,
-                    num_evaluation_episodes,
-                    evaluation_horizon,
                 )
                 results.append((seed, approach, num_calibration_steps, result))
     df = pd.DataFrame(results, columns=columns)
@@ -129,8 +126,6 @@ def _run_single(
     num_robot_states: int,
     num_tasks: int,
     num_actions: int,
-    num_evaluation_episodes: int,
-    evaluation_horizon: int,
 ) -> float:
     rng = np.random.default_rng(seed)
     # Create things that are constant in the world (across deployments).
@@ -155,7 +150,7 @@ def _run_single(
         task_probs, task_rewards, action_space, task_space, robot_state_transitions
     )
     # Create the calibrator.
-    calibrator = ToyCalibrator(action_space, task_space, robot_state_transitions, rng)
+    calibrator = ToyCalibrator(action_space, task_space, robot_state_transitions, seed)
     # Create the approach.
     if approach_name == "Random Calibration":
         approach: CalibrativeApproach = RandomCalibrativeApproach(
@@ -164,7 +159,7 @@ def _run_single(
             test_env.calibrative_action_space,
             test_env.observation_space,
             calibrator,
-            rng,
+            seed,
         )
     elif approach_name == "Greedy Maximization":
         approach = GreedyMaximizationCalibrativeApproach(
@@ -173,11 +168,11 @@ def _run_single(
             test_env.calibrative_action_space,
             test_env.observation_space,
             calibrator,
-            rng,
+            seed,
         )
     else:
         assert approach_name == "Oracle"
-        approach = OracleApproach(test_env, rng)
+        approach = OracleApproach(test_env, seed)
     # Training phase.
     approach.train(training_envs)
     # Calibration phase.
@@ -192,20 +187,12 @@ def _run_single(
 
     # Evaluation phase.
     print("Starting evaluation phase...")
-    rng = np.random.default_rng(seed)
-    rews = []
-    for _ in range(num_evaluation_episodes):
-        state = test_env.sample_initial_state(rng)
-        rew = 0.0
-        for _ in range(evaluation_horizon):
-            action = approach.step(state)
-            next_state = test_env.sample_next_state(state, action, rng)
-            rew += test_env.get_reward(state, action, next_state)
-            state = next_state
-        rews.append(rew)
-    mean_rew = float(np.mean(rews))
-    print("Average rewards:", mean_rew)
-    return mean_rew
+    policy = approach.step
+    values = evaluate_policy_linear_system(policy, test_env)
+    initial_state_dist = test_env.get_initial_state_distribution()
+    value = float(sum(values[s] * p for s, p in initial_state_dist.items()))
+    print("Result:", value)
+    return value
 
 
 def _df_to_plot(df: pd.DataFrame, outdir: Path) -> None:
@@ -254,8 +241,6 @@ if __name__ == "__main__":
     parser.add_argument("--num_robot_states", default=10, type=int)
     parser.add_argument("--num_tasks", default=3, type=int)
     parser.add_argument("--num_actions", default=2, type=int)
-    parser.add_argument("--num_evaluation_episodes", default=100, type=int)
-    parser.add_argument("--evaluation_horizon", default=100, type=int)
     parser.add_argument("--outdir", default=Path("results"), type=Path)
     parser.add_argument("--load", action="store_true")
     parser_args = parser.parse_args()
@@ -266,8 +251,6 @@ if __name__ == "__main__":
         parser_args.num_robot_states,
         parser_args.num_tasks,
         parser_args.num_actions,
-        parser_args.num_evaluation_episodes,
-        parser_args.evaluation_horizon,
         parser_args.outdir,
         parser_args.load,
     )
