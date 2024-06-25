@@ -1,7 +1,7 @@
 """Domain-specific calibrator for the ToyCalibrativeMDP."""
 
 from collections import defaultdict
-from typing import Dict, List, Set, Tuple
+from typing import Callable, Dict, List, Set, Tuple
 
 import numpy as np
 
@@ -10,21 +10,25 @@ from robot_intake.algorithms.value_iteration import (
     value_iteration,
 )
 from robot_intake.calibrators.base_calibrator import Calibrator
-from robot_intake.envs.calibrative_mdp import CalibrativeAction, Observation
-from robot_intake.envs.mdp import MDPPolicy
+from robot_intake.envs.calibrative_mdp import Observation
 from robot_intake.envs.toy_calibrative_mdp import (
     ToyCalibrativeMDP,
     _RewardQuestion,
     _TaskQuestion,
     _ToyAction,
+    _ToyCalibrativeAction,
+    _ToyObservation,
     _ToyRobotState,
+    _ToyState,
     _ToyTask,
 )
 from robot_intake.structs import CategoricalDistribution
 from robot_intake.utils import topological_sort
 
 
-class ToyCalibrator(Calibrator):
+class ToyCalibrator(
+    Calibrator[_ToyState, _ToyAction, _ToyCalibrativeAction, _ToyObservation]
+):
     """Domain-specific calibrator for the ToyCalibrativeMDP."""
 
     def __init__(
@@ -43,7 +47,9 @@ class ToyCalibrator(Calibrator):
         self._task_switch_prob = task_switch_prob
         self._rng = rng
 
-    def calibrate(self, data: List[Tuple[CalibrativeAction, Observation]]) -> MDPPolicy:
+    def calibrate(
+        self, data: List[Tuple[_ToyCalibrativeAction, _ToyObservation]]
+    ) -> Callable[[_ToyState], _ToyAction]:
         # Come up with a very coarse approximation of the hidden parameters
         # given the data and then solve the MDP with value iteration.
         task_data: List[Tuple[_TaskQuestion, Observation]] = []
@@ -65,7 +71,7 @@ class ToyCalibrator(Calibrator):
         )
         value_fn = value_iteration(mdp)
         policy = value_function_to_greedy_policy(value_fn, mdp, self._rng)
-        return policy
+        return policy  # type: ignore
 
     def _infer_task_probs(
         self, data: List[Tuple[_TaskQuestion, Observation]]

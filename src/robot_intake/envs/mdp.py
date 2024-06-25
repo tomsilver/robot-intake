@@ -1,7 +1,7 @@
 """A generic definition of an MDP with discrete states and actions."""
 
 import abc
-from typing import Callable, Generic, Set, TypeAlias, TypeVar
+from typing import Generic, Set, TypeAlias, TypeVar
 
 import numpy as np
 
@@ -9,7 +9,6 @@ from robot_intake.structs import CategoricalDistribution, HashableComparable, Im
 
 MDPState: TypeAlias = HashableComparable
 MDPAction: TypeAlias = HashableComparable
-MDPPolicy: TypeAlias = Callable[[MDPState], MDPAction]
 
 
 _S = TypeVar("_S", bound=MDPState)
