@@ -25,7 +25,8 @@ class GreedyMaximizationCalibrativeApproach(CalibrativeApproach):
         assert set(self._calibrative_action_space) == set(
             self._calibrative_action_to_score
         )
-        key = lambda k: self._calibrative_action_to_score[k]
+        # Note the sign flip! Higher scores are better.
+        key = lambda k: -1 * self._calibrative_action_to_score[k]
         return sorted(self._calibrative_action_space, key=key)
 
     def _train(self, training_envs: Collection[CalibrativeMDP]) -> None:
