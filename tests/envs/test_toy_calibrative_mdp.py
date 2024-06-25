@@ -36,7 +36,6 @@ def test_toy_calibrative_mdp():
             },
         },
     }
-    task_switch_prob = 0.1
     task_probs = {
         "task0": 0.1,
         "task1": 0.9,
@@ -58,7 +57,6 @@ def test_toy_calibrative_mdp():
         action_space,
         task_space,
         robot_state_transitions,
-        task_switch_prob,
         num_coin_flip_calibrative_actions=num_coin_flips,
     )
     num_actions = len(env.action_space)

@@ -38,8 +38,8 @@ class ToyCalibrator(
         robot_state_transitions: Dict[
             _ToyRobotState, Dict[_ToyAction, CategoricalDistribution[_ToyRobotState]]
         ],
-        task_switch_prob: float,
         rng: np.random.Generator,
+        task_switch_prob: float = 0.1,
     ) -> None:
         self._action_space = action_space
         self._task_space = task_space
