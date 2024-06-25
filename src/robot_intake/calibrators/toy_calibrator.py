@@ -83,9 +83,6 @@ class ToyCalibrator(
                 continue
             if response:
                 pairwise_relations.append((question.task1, question.task2))
-            else:
-                # Assume no equality.
-                pairwise_relations.append((question.task2, question.task1))
         ordered_tasks = topological_sort(self._task_space, pairwise_relations)
         # This is the approximation: linearly increasing probabilities.
         unnormed_probs = np.arange(1, len(ordered_tasks) + 1)
@@ -105,10 +102,7 @@ class ToyCalibrator(
                 continue
             if response:
                 relation = (question.robot1, question.robot2)
-            else:
-                # Assume no equality.
-                relation = (question.robot2, question.robot1)
-            pairwise_relations[question.task].append(relation)
+                pairwise_relations[question.task].append(relation)
         task_rewards: Dict[_ToyTask, Dict[_ToyRobotState, float]] = {}
         states = sorted(self._robot_state_transitions)
         # Use knowledge of reward distribution.
@@ -116,7 +110,7 @@ class ToyCalibrator(
             ordered_states = topological_sort(states, pairwise_relations[task])
             bad_state, good_state = ordered_states[0], ordered_states[-1]
             d = {s: 0.0 for s in ordered_states}
-            d[good_state] = 100.0
-            d[bad_state] = -100.0
+            d[good_state] = 10.0
+            d[bad_state] = -10.0
             task_rewards[task] = d
         return task_rewards

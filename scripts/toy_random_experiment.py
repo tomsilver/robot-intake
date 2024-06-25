@@ -41,11 +41,11 @@ def _main(
         return _df_to_plot(df, outdir)
     columns = ["Seed", "Approach", "Num Calibration Steps", "Returns"]
     results: List[Tuple[int, str, int, float]] = []
-    for num_calibration_steps in [0, 10]:  # , 100, 1000]:
+    for num_calibration_steps in [0, 10, 100, 1000]:
         print(f"Starting {num_calibration_steps=}")
         for seed in range(start_seed, start_seed + num_seeds):
             print(f"Starting {seed=}")
-            for approach in ["Oracle", "Calibration"]:
+            for approach in ["Oracle", "Random Calibration"]:
                 print(f"Starting {approach=}")
                 result = _run_single(
                     seed,
@@ -82,8 +82,8 @@ def _sample_task_rewards(
     good_state, bad_state = rng.choice(ordered_robot_states, size=2, replace=False)
     for task in sorted(task_space):
         d = {s: 0.0 for s in ordered_robot_states}
-        d[good_state] = 100.0
-        d[bad_state] = -100.0
+        d[good_state] = 10.0
+        d[bad_state] = -10.0
         task_rewards[task] = d
     return task_rewards
 
