@@ -1,6 +1,6 @@
 """An approach that uses greedy maximization to order calibrative actions."""
 
-from typing import Callable, Collection, Dict, List
+from typing import Callable, Collection, Dict, List, Tuple
 
 from robot_intake.algorithms.policy_evaluation import evaluate_policy_linear_system
 from robot_intake.approaches.base_approach import CalibrativeApproach
@@ -18,6 +18,9 @@ class GreedyMaximizationCalibrativeApproach(CalibrativeApproach):
     ) -> None:
         super().__init__(*args, **kwargs)
         self._calibrative_action_to_score: Dict[CalibrativeAction, float] = {}
+        self._calibrative_action_to_tiebreak = {
+            a: self._rng.uniform() for a in self._calibrative_action_space
+        }
         self._next_calibrative_action_idx = 0
 
     @property
@@ -26,7 +29,11 @@ class GreedyMaximizationCalibrativeApproach(CalibrativeApproach):
             self._calibrative_action_to_score
         )
         # Note the sign flip! Higher scores are better.
-        key = lambda k: -1 * self._calibrative_action_to_score[k]
+        # Random tiebreaking.
+        key: Callable[[CalibrativeAction], Tuple[float, float]] = lambda k: (
+            -1 * self._calibrative_action_to_score[k],
+            self._calibrative_action_to_tiebreak[k],
+        )
         return sorted(self._calibrative_action_space, key=key)
 
     def _train(self, training_envs: Collection[CalibrativeMDP]) -> None:
