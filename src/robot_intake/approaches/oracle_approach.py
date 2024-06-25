@@ -1,5 +1,7 @@
 """An approach that has access to the hidden parameters."""
 
+from typing import Collection
+
 import numpy as np
 
 from robot_intake.algorithms.value_iteration import (
@@ -29,9 +31,13 @@ class OracleApproach(RandomCalibrativeApproach):
             seed,
         )
 
-    def finish_calibration(self) -> None:
-        value_fn = value_iteration(self._env)
-        tiebreak_rng = np.random.default_rng(self._seed)
-        self._policy = value_function_to_greedy_policy(
-            value_fn, self._env, tiebreak_rng
-        )
+    def _train(self, training_envs: Collection[CalibrativeMDP]) -> None:
+        pass
+
+    def calibrate(self) -> None:
+        if self._policy is None:
+            value_fn = value_iteration(self._env)
+            tiebreak_rng = np.random.default_rng(self._seed)
+            self._policy = value_function_to_greedy_policy(
+                value_fn, self._env, tiebreak_rng
+            )

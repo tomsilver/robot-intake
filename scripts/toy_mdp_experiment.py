@@ -11,6 +11,9 @@ from matplotlib import pyplot as plt
 
 from robot_intake.algorithms.policy_evaluation import evaluate_policy_linear_system
 from robot_intake.approaches.base_approach import CalibrativeApproach
+from robot_intake.approaches.greedy_maximization_approach import (
+    GreedyMaximizationCalibrativeApproach,
+)
 from robot_intake.approaches.oracle_approach import OracleApproach
 from robot_intake.approaches.random_approach import RandomCalibrativeApproach
 from robot_intake.calibrators.toy_calibrator import (
@@ -26,6 +29,7 @@ from robot_intake.structs import CategoricalDistribution
 def _main(
     start_seed: int,
     num_seeds: int,
+    num_training_envs: int,
     num_robot_states: int,
     num_tasks: int,
     num_actions: int,
@@ -33,28 +37,30 @@ def _main(
     load: bool,
 ) -> None:
     os.makedirs(outdir, exist_ok=True)
-    csv_file = outdir / "toy_random_experiment.csv"
+    csv_file = outdir / "toy_experiment.csv"
     if load:
         assert csv_file.exists()
         df = pd.read_csv(csv_file)
         return _df_to_plot(df, outdir)
     columns = ["Seed", "Approach", "Num Calibration Steps", "Returns"]
+    approaches = ["Greedy Maximization", "Oracle", "Random Calibration"]
+    num_calibration_steps = [0, 10, 100, 500, 1000]
     results: List[Tuple[int, str, int, float]] = []
-    for num_calibration_steps in [0, 10, 100, 500, 1000]:
-        print(f"Starting {num_calibration_steps=}")
-        for seed in range(start_seed, start_seed + num_seeds):
-            print(f"Starting {seed=}")
-            for approach in ["Oracle", "Random Calibration"]:
-                print(f"Starting {approach=}")
-                result = _run_single(
-                    seed,
-                    approach,
-                    num_calibration_steps,
-                    num_robot_states,
-                    num_tasks,
-                    num_actions,
-                )
-                results.append((seed, approach, num_calibration_steps, result))
+    for seed in range(start_seed, start_seed + num_seeds):
+        print(f"Starting {seed=}")
+        for approach in approaches:
+            print(f"Starting {approach=}")
+            result = _run_single(
+                seed,
+                approach,
+                num_training_envs,
+                num_calibration_steps,
+                num_robot_states,
+                num_tasks,
+                num_actions,
+            )
+            for num_steps, returns in result:
+                results.append((seed, approach, num_steps, returns))
     df = pd.DataFrame(results, columns=columns)
     df.to_csv(csv_file)
     return _df_to_plot(df, outdir)
@@ -114,71 +120,84 @@ def _sample_robot_state_transitions(
 def _run_single(
     seed: int,
     approach_name: str,
-    num_calibration_steps: int,
+    num_training_envs: int,
+    num_calibration_steps: List[int],
     num_robot_states: int,
     num_tasks: int,
     num_actions: int,
-) -> float:
+) -> List[Tuple[int, float]]:
     rng = np.random.default_rng(seed)
-    # Create the env.
+    # Create things that are constant in the world (across deployments).
     task_space = set(range(num_tasks))
     action_space = set(range(num_actions))
     robot_state_space = set(range(num_robot_states))
-    task_probs = _sample_task_probs(task_space, rng)
-    task_rewards = _sample_task_rewards(task_space, robot_state_space, rng)
     robot_state_transitions = _sample_robot_state_transitions(
         robot_state_space, action_space, rng
     )
-    task_switch_prob = 0.1
-    env = ToyCalibrativeMDP(
-        task_probs,
-        task_rewards,
-        action_space,
-        task_space,
-        robot_state_transitions,
-        task_switch_prob,
-    )
-    if approach_name == "Random Calibration":
-        # Create the calibrator.
-        calibrator = ToyCalibrator(
-            action_space, task_space, robot_state_transitions, task_switch_prob, seed
+    # Create the training envs and evaluation env.
+    training_envs = []
+    for _ in range(num_training_envs):
+        task_probs = _sample_task_probs(task_space, rng)
+        task_rewards = _sample_task_rewards(task_space, robot_state_space, rng)
+        train_env = ToyCalibrativeMDP(
+            task_probs, task_rewards, action_space, task_space, robot_state_transitions
         )
-        # Create the approach.
+        training_envs.append(train_env)
+    task_probs = _sample_task_probs(task_space, rng)
+    task_rewards = _sample_task_rewards(task_space, robot_state_space, rng)
+    test_env = ToyCalibrativeMDP(
+        task_probs, task_rewards, action_space, task_space, robot_state_transitions
+    )
+    # Create the calibrator.
+    calibrator = ToyCalibrator(action_space, task_space, robot_state_transitions, seed)
+    # Create the approach.
+    if approach_name == "Random Calibration":
         approach: CalibrativeApproach = RandomCalibrativeApproach(
-            env.state_space,
-            env.action_space,
-            env.calibrative_action_space,
-            env.observation_space,
+            test_env.state_space,
+            test_env.action_space,
+            test_env.calibrative_action_space,
+            test_env.observation_space,
+            calibrator,
+            seed,
+        )
+    elif approach_name == "Greedy Maximization":
+        approach = GreedyMaximizationCalibrativeApproach(
+            test_env.state_space,
+            test_env.action_space,
+            test_env.calibrative_action_space,
+            test_env.observation_space,
             calibrator,
             seed,
         )
     else:
         assert approach_name == "Oracle"
-        approach = OracleApproach(env, seed)
-
+        approach = OracleApproach(test_env, seed)
+    # Training phase.
+    approach.train(training_envs)
     # Calibration phase.
     print("Starting calibration phase...")
     rng = np.random.default_rng(seed)
-    for _ in range(num_calibration_steps):
-        calibrative_action = approach.get_calibrative_action()
-        obs = env.sample_observation(calibrative_action, rng)
-        approach.observe_calibrative_response(obs)
-    print("Finishing calibration...")
-    approach.finish_calibration()
-
-    # Evaluation phase.
-    print("Starting evaluation phase...")
-    policy = approach.step
-    values = evaluate_policy_linear_system(policy, env)
-    initial_state_dist = env.get_initial_state_distribution()
-    value = float(sum(values[s] * p for s, p in initial_state_dist.items()))
-    print("Result:", value)
-    return value
+    max_calibration_steps = max(num_calibration_steps)
+    results = []
+    for t in range(max_calibration_steps + 1):
+        if t in num_calibration_steps:
+            print(f"Calibrating and evaluating after {t} steps...")
+            approach.calibrate()
+            values = evaluate_policy_linear_system(approach.step, test_env)
+            initial_state_dist = test_env.get_initial_state_distribution()
+            value = float(sum(values[s] * p for s, p in initial_state_dist.items()))
+            print("Result:", value)
+            results.append((t, value))
+        if t < max_calibration_steps:
+            calibrative_action = approach.get_calibrative_action()
+            obs = test_env.sample_observation(calibrative_action, rng)
+            approach.observe_calibrative_response(obs)
+    return results
 
 
 def _df_to_plot(df: pd.DataFrame, outdir: Path) -> None:
     matplotlib.rcParams.update({"font.size": 20})
-    fig_file = outdir / "toy_random_experiment.png"
+    fig_file = outdir / "toy_experiment.png"
 
     grouped = df.groupby(["Num Calibration Steps", "Approach"]).agg(
         {"Returns": ["mean", "sem"]}
@@ -218,8 +237,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", default=0, type=int)
     parser.add_argument("--num_seeds", default=10, type=int)
-    parser.add_argument("--num_robot_states", default=10, type=int)
-    parser.add_argument("--num_tasks", default=3, type=int)
+    parser.add_argument("--num_training_envs", default=5, type=int)
+    parser.add_argument("--num_robot_states", default=3, type=int)
+    parser.add_argument("--num_tasks", default=2, type=int)
     parser.add_argument("--num_actions", default=2, type=int)
     parser.add_argument("--outdir", default=Path("results"), type=Path)
     parser.add_argument("--load", action="store_true")
@@ -227,6 +247,7 @@ if __name__ == "__main__":
     _main(
         parser_args.seed,
         parser_args.num_seeds,
+        parser_args.num_training_envs,
         parser_args.num_robot_states,
         parser_args.num_tasks,
         parser_args.num_actions,

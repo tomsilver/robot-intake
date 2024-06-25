@@ -88,7 +88,7 @@ class ToyCalibrativeMDP(
         robot_state_transitions: Dict[
             _ToyRobotState, Dict[_ToyAction, CategoricalDistribution[_ToyRobotState]]
         ],
-        task_switch_prob: float,
+        task_switch_prob: float = 0.1,
         num_coin_flip_calibrative_actions: int = 100,
     ) -> None:
         self._task_probs = task_probs

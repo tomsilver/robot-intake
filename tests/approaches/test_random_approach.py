@@ -34,7 +34,6 @@ def test_random_approach():
             },
         },
     }
-    task_switch_prob = 0.1
     task_probs = {
         "task0": 0.1,
         "task1": 0.9,
@@ -55,13 +54,10 @@ def test_random_approach():
         action_space,
         task_space,
         robot_state_transitions,
-        task_switch_prob,
     )
     # Create the calibrator.
     seed = 123
-    calibrator = ToyCalibrator(
-        action_space, task_space, robot_state_transitions, task_switch_prob, seed
-    )
+    calibrator = ToyCalibrator(action_space, task_space, robot_state_transitions, seed)
     # Create the approach.
     approach = RandomCalibrativeApproach(
         env.state_space,
@@ -78,7 +74,7 @@ def test_random_approach():
         calibrative_action = approach.get_calibrative_action()
         obs = env.sample_observation(calibrative_action, rng)
         approach.observe_calibrative_response(obs)
-    approach.finish_calibration()
+    approach.calibrate()
 
     # Evaluation phase.
     state = env.sample_initial_state(rng)
