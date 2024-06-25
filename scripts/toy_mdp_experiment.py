@@ -45,8 +45,7 @@ def _main(
     columns = ["Seed", "Approach", "Num Calibration Steps", "Returns"]
     approaches = ["Greedy Maximization", "Oracle", "Random Calibration"]
     results: List[Tuple[int, str, int, float]] = []
-    # TODO
-    for num_calibration_steps in [1]:  # [0, 10, 100, 500, 1000]:
+    for num_calibration_steps in [0, 10, 100, 500, 1000]:
         print(f"Starting {num_calibration_steps=}")
         for seed in range(start_seed, start_seed + num_seeds):
             print(f"Starting {seed=}")

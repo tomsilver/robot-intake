@@ -15,6 +15,7 @@ dependencies = [
    "pandas",
    "pandas-stubs",
    "sympy",
+   "tqdm",
 ]
 
 [project.optional-dependencies]
